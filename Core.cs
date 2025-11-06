@@ -1,4 +1,5 @@
-﻿using Il2CppInterop.Runtime;
+﻿using HarmonyLib;
+using Il2CppInterop.Runtime;
 using Il2CppRUMBLE.Interactions.InteractionBase;
 using Il2CppRUMBLE.Social;
 using Il2CppRUMBLE.Social.Phone;
@@ -6,6 +7,7 @@ using Il2CppTMPro;
 using MelonLoader;
 using RumbleModdingAPI;
 using RumbleModUI;
+using System.Collections;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
@@ -23,12 +25,14 @@ namespace AutomaticInviter
         private string usernamesPath = "UserData/AutomaticInviter/usernames.txt";
         private string[] IDList;
         private string IDsPath = "UserData/AutomaticInviter/IDs.txt";
-        public static OptionsPage options = null;
-        private static MelonLogger.Instance loggerInstance;
-        bool autoInvite = false;
-        AssetBundle assetBundle = null;
-        Mod mod = new Mod();
-
+        private string[] CodesList;
+        private string CodesListPath = "UserData/AutomaticInviter/FriendCodes.txt";
+        internal static MelonLogger.Instance loggerInstance;
+        private bool autoInvite = false;
+        private AssetBundle assetBundle = null;
+        private Mod mod = new Mod();
+        public static bool invokedFind = false;
+        private object inviteListByCodeCoroutine = null;
 
         public override void OnInitializeMelon()
         {
@@ -86,6 +90,11 @@ namespace AutomaticInviter
                 File.WriteAllText(IDsPath, string.Empty);
             }
 
+            if (!File.Exists(CodesListPath))
+            {
+                File.WriteAllText(CodesListPath, string.Empty);
+            }
+
             UpdateLists();
         }
 
@@ -93,9 +102,11 @@ namespace AutomaticInviter
         {
             usernameList = [];
             IDList = [];
+            CodesList = [];
 
             usernameList = File.Exists(usernamesPath) ? File.ReadAllLines(usernamesPath) : Array.Empty<string>();
             IDList = File.Exists(IDsPath) ? File.ReadAllLines(IDsPath) : Array.Empty<string>();
+            CodesList = File.Exists(CodesListPath) ? File.ReadAllLines(CodesListPath) : Array.Empty<string>();
         }
 
         public static void InvitePerson(Platform platform, string masterID, string titleID, string username, OptionsPage optionsPage)
@@ -110,15 +121,43 @@ namespace AutomaticInviter
             optionsPage.inviteToParkButton.onPressed.Invoke();
         }
 
+        public static void InvitePerson(UserData userData, OptionsPage optionsPage)
+        {
+            if (optionsPage == null)
+            {
+                loggerInstance.Error("Options page is null!");
+                return;
+            }
+            optionsPage.Initialize(userData);
+            optionsPage.inviteToParkButton.onPressed.Invoke();
+        }
+
+        public static void InvitePersonByFriendCode(string code, GameObject friendScreen = null)
+        {
+            if (friendScreen == null)
+                friendScreen = Calls.GameObjects.Gym.LOGIC.Heinhouserproducts.Telephone20REDUXspecialedition.PlayerFinderScreen.GetGameObject();
+            friendScreen.transform.GetChild(0).GetComponent<InteractionButton>().onPressed.Invoke();
+            FindUser findUser = friendScreen.GetComponent<FindUser>();
+            findUser.friendCodeField.text = code;
+            findUser.Find();
+            invokedFind = true;
+        }
+
         private void OnStep(int step)
         {
             autoInvite = step == 1;
         }
 
+        public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
+        {
+            if (inviteListByCodeCoroutine != null)
+            {
+                MelonCoroutines.Stop(inviteListByCodeCoroutine);
+            }
+        }
+
         private void OnMapInitialised()
         {
-            options = null;
-
             if (Calls.Scene.GetSceneName() == "Gym")
             {
                 if (!(bool)mod.Settings[1].SavedValue)
@@ -173,7 +212,7 @@ namespace AutomaticInviter
                 return;
             }
 
-            options = optionsObject.GetComponent<OptionsPage>();
+            OptionsPage options = optionsObject.GetComponent<OptionsPage>();
             if (options == null)
             {
                 loggerInstance.Error("Cannot find options page!");
@@ -186,6 +225,8 @@ namespace AutomaticInviter
                     InviteListByUsername(usernameList, options);
                 if (IDList.Length >= 1)
                     InviteListByMasterID(IDList, options);
+                if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
+                    inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
             }
 
             GameObject shiftstoneButton = Calls.GameObjects.Park.LOGIC.ShiftstoneQuickswapper.FloatingButton.GetGameObject();
@@ -203,6 +244,8 @@ namespace AutomaticInviter
                     InviteListByUsername(usernameList, options);
                 if (IDList.Length >= 1)
                     InviteListByMasterID(IDList, options);
+                if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
+                    inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
                 loggerInstance.Msg("People invited!");
             }));
             inviteListButton.transform.SetParent(inviteButtonObject.transform);
@@ -227,8 +270,8 @@ namespace AutomaticInviter
                     return;
                 }
 
-                options = optionsObject.GetComponent<OptionsPage>();
-                if (options == null)
+                optionsPage = optionsObject.GetComponent<OptionsPage>();
+                if (optionsPage == null)
                 {
                     loggerInstance.Error("Cannot find options page!");
                     return;
@@ -275,8 +318,8 @@ namespace AutomaticInviter
                     return;
                 }
 
-                options = optionsObject.GetComponent<OptionsPage>();
-                if (options == null)
+                optionsPage = optionsObject.GetComponent<OptionsPage>();
+                if (optionsPage == null)
                 {
                     loggerInstance.Error("Cannot find options page!");
                     return;
@@ -291,6 +334,11 @@ namespace AutomaticInviter
                 if (friendsWithID.Count() == 0)
                 {
                     loggerInstance.Warning($"No friends with ID \"{masterID}\"");
+                    UserData userData = UserDataManager.FetchUserData(masterID);
+                    if (userData != null)
+                    {
+                        InvitePerson(userData, optionsPage);
+                    }
                 }
                 else
                 {
@@ -298,6 +346,69 @@ namespace AutomaticInviter
                     if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == friend.PlayFabMasterId).Count() == 0)
                         InvitePerson(friend.PlatformId, friend.PlayFabMasterId, friend.PlayFabTitleId, friend.PublicName, optionsPage);
                 }
+            }
+        }
+
+        public static IEnumerator InviteListByFriendCode(string[] codes, OptionsPage optionsPage = null)
+        {
+            if (codes.Length < 1)
+            {
+                loggerInstance.Error("ID list is empty!");
+                yield break;
+            }
+
+            if (optionsPage == null)
+            {
+                GameObject optionsObject = Calls.GameObjects.Park.LOGIC.Heinhouwserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                if (optionsObject == null)
+                {
+                    loggerInstance.Error("Cannot find settings page object!");
+                    yield break;
+                }
+
+                optionsPage = optionsObject.GetComponent<OptionsPage>();
+                if (optionsPage == null)
+                {
+                    loggerInstance.Error("Cannot find options page!");
+                    yield break;
+                }
+            }
+
+            foreach (string code in codes)
+            {
+                InvitePersonByFriendCode(code);
+                while (invokedFind == true)
+                {
+                    yield return null;
+                }
+            }
+            yield break;
+        }
+    }
+
+    [HarmonyPatch(typeof(FindUser), "OnDoneFindingUser")]
+    class FindUserPatch
+    {
+        static void Postfix(ref FindUser __instance)
+        {
+            if (Core.invokedFind)
+            {
+                GameObject optionsObject = Calls.GameObjects.Gym.LOGIC.Heinhouserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                if (optionsObject == null)
+                {
+                    Core.loggerInstance.Error("Cannot find settings page object!");
+                    return;
+                }
+
+                OptionsPage options = optionsObject.GetComponent<OptionsPage>();
+                if (options == null)
+                {
+                    Core.loggerInstance.Error("Cannot find options page!");
+                    return;
+                }
+
+                options.Initialize(__instance.PlayerTag.UserData);
+                Core.InvitePerson(__instance.PlayerTag.UserData, options);
             }
         }
     }
