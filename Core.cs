@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
 
-[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "1.2.0", "Orangenal", null)]
+[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "1.2.1", "Orangenal", null)]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
 
 namespace AutomaticInviter
@@ -30,8 +30,10 @@ namespace AutomaticInviter
         private AssetBundle assetBundle = null;
         private Mod mod = new Mod();
         public static string invokedFind = null;
-        private object inviteListByCodeCoroutine = null;
+        private static object inviteListByCodeCoroutine = null;
         internal static object waitingCoroutine = null;
+
+        private static Dictionary<string, UserData> codeCache = new();
 
         public override void OnInitializeMelon()
         {
@@ -67,7 +69,7 @@ namespace AutomaticInviter
             }
             // Used for debugging so I don't have to go in headset
 
-            /*if (Input.GetKeyDown(KeyCode.O))
+            if (Input.GetKeyDown(KeyCode.O))
             {
                 MelonLogger.Msg("Inviting");
                 GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
@@ -80,7 +82,7 @@ namespace AutomaticInviter
                 if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                     inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
                 MelonLogger.Msg("okay done");
-            }*/
+            }
         }
 
         private void InitFiles()
@@ -171,6 +173,8 @@ namespace AutomaticInviter
             {
                 MelonCoroutines.Stop(waitingCoroutine);
             }
+
+            codeCache = new();
         }
 
         private void OnMapInitialised(string sceneName)
@@ -369,7 +373,7 @@ namespace AutomaticInviter
 
                 if (friendsWithID.Count() == 0)
                 {
-                    loggerInstance.Warning($"No friends with ID \"{masterID}\"");
+                    loggerInstance.Msg($"No friends with ID \"{masterID}\"");
                     UserData userData = UserDataManager.FetchUserData(masterID);
 
                     if (userData != null)
@@ -396,6 +400,7 @@ namespace AutomaticInviter
             if (codes.Length < 1)
             {
                 loggerInstance.Error("Code list is empty!");
+                inviteListByCodeCoroutine = null;
                 yield break;
             }
 
@@ -405,6 +410,7 @@ namespace AutomaticInviter
                 if (optionsObject == null)
                 {
                     loggerInstance.Error("Cannot find settings page object!");
+                    inviteListByCodeCoroutine = null;
                     yield break;
                 }
 
@@ -412,6 +418,7 @@ namespace AutomaticInviter
                 if (optionsPage == null)
                 {
                     loggerInstance.Error("Cannot find options page!");
+                    inviteListByCodeCoroutine = null;
                     yield break;
                 }
             }
@@ -421,6 +428,17 @@ namespace AutomaticInviter
 
             foreach (string code in codes)
             {
+                if (codeCache.ContainsKey(code))
+                {
+                    loggerInstance.Msg($"Inviting player with friend code {code}");
+                    UserData userData = codeCache[code];
+                    if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == userData.playFabMasterId).Count() == 0)
+                    {
+                        InvitePerson(userData, optionsPage);
+                    }
+                    inviteListByCodeCoroutine = null;
+                    yield break;
+                }
                 loggerInstance.Msg($"Finding player with friend code {code}");
                 InvitePersonByFriendCode(code, findUser);
                 while (invokedFind != null)
@@ -432,10 +450,11 @@ namespace AutomaticInviter
                     findUser.OnBackspacePressed();
                 }
             }
+            inviteListByCodeCoroutine = null;
             yield break;
         }
 
-        internal static IEnumerator WaitForUserData(PlayerTag playerTag, OptionsPage options)
+        internal static IEnumerator WaitForUserData(PlayerTag playerTag, OptionsPage options, string code)
         {
             int count = 0;
             while (playerTag.UserData.publicName == "" && count < 5000) // For me it usually takes around 200 +- 50 but idk if it's affected by lag so 5000 frames should be a good timeout
@@ -455,7 +474,10 @@ namespace AutomaticInviter
                 yield break;
             }
 
+            Core.codeCache.Add(code, playerTag.UserData);
+
             options.Initialize(playerTag.UserData);
+            loggerInstance.Msg($"Inviting player with friend code {code}");
             InvitePerson(playerTag.UserData, options);
             yield break;
         }
@@ -484,7 +506,7 @@ namespace AutomaticInviter
 
                 if (__instance.searchStatusText.text != "No ID match found")
                 {
-                    Core.waitingCoroutine = MelonCoroutines.Start(Core.WaitForUserData(__instance.PlayerTag, options));
+                    Core.waitingCoroutine = MelonCoroutines.Start(Core.WaitForUserData(__instance.PlayerTag, options, Core.invokedFind));
                 }
                 else
                 {
