@@ -69,7 +69,7 @@ namespace AutomaticInviter
             }
             // Used for debugging so I don't have to go in headset
 
-            if (Input.GetKeyDown(KeyCode.O))
+            /*if (Input.GetKeyDown(KeyCode.O))
             {
                 MelonLogger.Msg("Inviting");
                 GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
@@ -82,7 +82,7 @@ namespace AutomaticInviter
                 if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                     inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
                 MelonLogger.Msg("okay done");
-            }
+            }*/
         }
 
         private void InitFiles()
