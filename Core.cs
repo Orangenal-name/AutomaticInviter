@@ -168,10 +168,12 @@ namespace AutomaticInviter
             if (inviteListByCodeCoroutine != null)
             {
                 MelonCoroutines.Stop(inviteListByCodeCoroutine);
+                inviteListByCodeCoroutine = null;
             }
             if (waitingCoroutine != null)
             {
                 MelonCoroutines.Stop(waitingCoroutine);
+                waitingCoroutine = null;
             }
 
             codeCache = new();
