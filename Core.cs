@@ -5,16 +5,14 @@ using Il2CppRUMBLE.Social;
 using Il2CppRUMBLE.Social.Phone;
 using Il2CppTMPro;
 using MelonLoader;
-using RumbleModdingAPI;
+using RumbleModdingAPI.RMAPI;
 using RumbleModUI;
 using System.Collections;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.UI;
-using static Il2CppRUMBLE.Managers.PlatformManager;
 
-[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "1.1.1", "Orangenal", null)]
+[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "1.2.0", "Orangenal", null)]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
 
 namespace AutomaticInviter
@@ -31,15 +29,16 @@ namespace AutomaticInviter
         private bool autoInvite = false;
         private AssetBundle assetBundle = null;
         private Mod mod = new Mod();
-        public static bool invokedFind = false;
+        public static string invokedFind = null;
         private object inviteListByCodeCoroutine = null;
+        internal static object waitingCoroutine = null;
 
         public override void OnInitializeMelon()
         {
-            Calls.onMapInitialized += OnMapInitialised;
+            Actions.onMapInitialized += OnMapInitialised;
             InitFiles();
             loggerInstance = LoggerInstance;
-            assetBundle = Calls.LoadAssetBundleFromStream(this, "AutomaticInviter.Resources.autoinvite");
+            assetBundle = AssetBundles.LoadAssetBundleFromStream(this, "AutomaticInviter.Resources.autoinvite");
 
             mod.ModName = Info.Name;
             mod.ModVersion = Info.Version;
@@ -66,6 +65,22 @@ namespace AutomaticInviter
                 loggerInstance.Msg("Refreshing lists...");
                 UpdateLists();
             }
+            // Used for debugging so I don't have to go in headset
+
+            /*if (Input.GetKeyDown(KeyCode.O))
+            {
+                MelonLogger.Msg("Inviting");
+                GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                OptionsPage options = optionsObject.GetComponent<OptionsPage>();
+
+                if (usernameList.Length >= 1)
+                    InviteListByUsername(usernameList, options);
+                if (IDList.Length >= 1)
+                    InviteListByMasterID(IDList, options);
+                if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
+                    inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
+                MelonLogger.Msg("okay done");
+            }*/
         }
 
         private void InitFiles()
@@ -109,14 +124,14 @@ namespace AutomaticInviter
             CodesList = File.Exists(CodesListPath) ? File.ReadAllLines(CodesListPath) : Array.Empty<string>();
         }
 
-        public static void InvitePerson(Platform platform, string masterID, string titleID, string username, OptionsPage optionsPage)
+        public static void InvitePerson(string masterID, string titleID, string username, OptionsPage optionsPage)
         {
             if (optionsPage == null)
             {
                 loggerInstance.Error("Options page is null!");
                 return;
             }
-            UserData friendData = new UserData(platform, masterID, titleID, username);
+            UserData friendData = new UserData(masterID, titleID, username);
             optionsPage.Initialize(friendData);
             optionsPage.inviteToParkButton.onPressed.Invoke();
         }
@@ -132,15 +147,13 @@ namespace AutomaticInviter
             optionsPage.inviteToParkButton.onPressed.Invoke();
         }
 
-        public static void InvitePersonByFriendCode(string code, GameObject friendScreen = null)
+        public static void InvitePersonByFriendCode(string code, FindUser findUser)
         {
-            if (friendScreen == null)
-                friendScreen = Calls.GameObjects.Gym.LOGIC.Heinhouserproducts.Telephone20REDUXspecialedition.PlayerFinderScreen.GetGameObject();
-            friendScreen.transform.GetChild(0).GetComponent<InteractionButton>().onPressed.Invoke();
-            FindUser findUser = friendScreen.GetComponent<FindUser>();
-            findUser.friendCodeField.text = code;
-            findUser.Find();
-            invokedFind = true;
+            foreach (char character in code)
+            {
+                findUser.OnNumberPressed((int)Char.GetNumericValue(character));
+            }
+            invokedFind = code;
         }
 
         private void OnStep(int step)
@@ -154,15 +167,21 @@ namespace AutomaticInviter
             {
                 MelonCoroutines.Stop(inviteListByCodeCoroutine);
             }
+            if (waitingCoroutine != null)
+            {
+                MelonCoroutines.Stop(waitingCoroutine);
+            }
         }
 
-        private void OnMapInitialised()
+        private void OnMapInitialised(string sceneName)
         {
-            if (Calls.Scene.GetSceneName() == "Gym")
+            if (sceneName == "Gym")
             {
                 if (!(bool)mod.Settings[1].SavedValue)
                     autoInvite = false;
-                GameObject DoorPilicy = Calls.GameObjects.Gym.LOGIC.Heinhouserproducts.Parkboard.RotatingScreen.HostPanel.DoorPilicy.GetGameObject();
+
+                GameObject HostPanel = GameObjects.Gym.INTERACTABLES.Parkboard.RotatingScreen.HostPanel.GetGameObject();
+                GameObject DoorPilicy = HostPanel.transform.GetChild(1).gameObject;
                 GameObject JoinInviteSetting = GameObject.Instantiate(DoorPilicy);
 
                 JoinInviteSetting.transform.SetParent(DoorPilicy.transform.parent);
@@ -185,27 +204,35 @@ namespace AutomaticInviter
                 UnityAction<int> stepReachedAction = DelegateSupport.ConvertDelegate<UnityAction<int>>(OnStep);
                 slider.onStepReached.AddListener(stepReachedAction);
 
-                Image imageLeft = JoinInviteSetting.transform.GetChild(3).GetChild(0).GetComponent<Image>();
+                GameObject imageLeft = JoinInviteSetting.transform.GetChild(1).GetChild(1).gameObject;
+                GameObject imageRight = JoinInviteSetting.transform.GetChild(1).GetChild(4).gameObject;
+
+                imageLeft.transform.localScale = new Vector3(0.075f, 0.075f, 0.075f);
+                imageRight.transform.localScale = new Vector3(0.075f, 0.075f, 0.075f);
+
                 Texture2D cross = assetBundle.LoadAsset<Texture2D>("cross");
                 Texture2D checkmark = assetBundle.LoadAsset<Texture2D>("checkmark");
-                imageLeft.sprite = Sprite.Create(
-                    cross,
-                    new Rect(0, 0, cross.width, cross.height),
-                    new Vector2(0.5f, 0.5f)
-                );
-                Image imageRight = JoinInviteSetting.transform.GetChild(3).GetChild(1).GetComponent<Image>();
-                imageRight.sprite = Sprite.Create(
-                    checkmark,
-                    new Rect(0, 0, checkmark.width, checkmark.height),
-                    new Vector2(0.5f, 0.5f)
-                );
+
+                imageLeft.GetComponent<MeshRenderer>().material.SetTexture("_Texture", cross);
+                imageRight.GetComponent<MeshRenderer>().material.SetTexture("_Texture", checkmark);
+
+                HostPanel.transform.position += new Vector3(0, 0.1f, 0);
+                HostPanel.transform.GetChild(0).localPosition -= new Vector3(0, 0.1f, 0); // Put that back right now!
+                DoorPilicy.transform.GetChild(0).GetChild(0).localPosition += new Vector3(0.02f, 0, 0);
+                DoorPilicy.transform.GetChild(0).GetChild(0).localScale -= new Vector3(0, 0.01f, 0);
+
+                for (int i = 1; i < HostPanel.transform.GetChild(2).GetChild(0).childCount; i++)
+                {
+                    Transform thisChild = HostPanel.transform.GetChild(2).GetChild(0).GetChild(i);
+                    thisChild.localScale = new Vector3(thisChild.localScale.x, 0.035f, thisChild.localScale.z);
+                }
             }
 
-            if (Calls.Scene.GetSceneName() != "Park" || !Calls.Players.IsHost()) return;
+            if (sceneName != "Park" || !Calls.Players.IsHost()) return;
 
             UpdateLists();
 
-            GameObject optionsObject = Calls.GameObjects.Park.LOGIC.Heinhouwserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+            GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
             if (optionsObject == null)
             {
                 loggerInstance.Error("Cannot find settings page object!");
@@ -221,21 +248,23 @@ namespace AutomaticInviter
 
             if (autoInvite)
             {
+                loggerInstance.Msg("Inviting people...");
                 if (usernameList.Length >= 1)
                     InviteListByUsername(usernameList, options);
                 if (IDList.Length >= 1)
                     InviteListByMasterID(IDList, options);
                 if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                     inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
+                loggerInstance.Msg("People invited!");
             }
 
-            GameObject shiftstoneButton = Calls.GameObjects.Park.LOGIC.ShiftstoneQuickswapper.FloatingButton.GetGameObject();
+            GameObject shiftstoneButton = GameObjects.Park.INTERACTABLES.Shiftstones.ShiftstoneQuickswapper.FloatingButton.GetGameObject();
             GameObject inviteButtonObject = GameObject.Instantiate(shiftstoneButton);
-            inviteButtonObject.transform.position = new Vector3(-28.6742f, -1.6354f, -10.215f);
-            inviteButtonObject.transform.rotation = Quaternion.Euler(-0, 70, 0);
+            inviteButtonObject.transform.position = new Vector3(-29.2742f, -1.6354f, -7.015f);
+            inviteButtonObject.transform.rotation = Quaternion.Euler(-0, 90, 0);
             inviteButtonObject.transform.GetChild(1).GetComponent<TextMeshPro>().text = "AutoInvite";
             GameObject.Destroy(inviteButtonObject.transform.GetChild(2).gameObject);
-            GameObject inviteListButton = Calls.Create.NewButton();
+            GameObject inviteListButton = Create.NewButton();
             inviteListButton.name = "InviteListButton";
             inviteListButton.transform.GetChild(0).gameObject.GetComponent<InteractionButton>().onPressed.AddListener(new System.Action(() =>
             {
@@ -250,7 +279,7 @@ namespace AutomaticInviter
             }));
             inviteListButton.transform.SetParent(inviteButtonObject.transform);
             inviteListButton.transform.localPosition = new Vector3(0.0326f, 0.0054f, 0.0458f);
-            inviteListButton.transform.rotation = Quaternion.Euler(0, 157, 90);
+            inviteListButton.transform.rotation = Quaternion.Euler(0, 180, 90);
         }
 
         public static void InviteListByUsername(string[] usernames, OptionsPage optionsPage = null)
@@ -263,7 +292,7 @@ namespace AutomaticInviter
 
             if (optionsPage == null)
             {
-                GameObject optionsObject = Calls.GameObjects.Park.LOGIC.Heinhouwserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
                 if (optionsObject == null)
                 {
                     loggerInstance.Error("Cannot find settings page object!");
@@ -294,8 +323,11 @@ namespace AutomaticInviter
                 {
                     foreach (GetFriendsResult friend in friendsWithUsername)
                     {
-                        if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == friend.PlayFabMasterId).Count() == 0)
-                            InvitePerson(friend.PlatformId, friend.PlayFabMasterId, friend.PlayFabTitleId, friend.PublicName, optionsPage);
+                        if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == friend.PlayFabMasterId).Count() != 0)
+                        {
+                            loggerInstance.Msg($"Inviting {friend.PublicName}");
+                            InvitePerson(friend.PlayFabMasterId, friend.PlayFabTitleId, friend.PublicName, optionsPage);
+                        }
                     }
                 }
             }
@@ -311,7 +343,7 @@ namespace AutomaticInviter
 
             if (optionsPage == null)
             {
-                GameObject optionsObject = Calls.GameObjects.Park.LOGIC.Heinhouwserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
                 if (optionsObject == null)
                 {
                     loggerInstance.Error("Cannot find settings page object!");
@@ -329,22 +361,32 @@ namespace AutomaticInviter
             Il2CppSystem.Collections.Generic.List<GetFriendsResult> friends = FriendHandler.ConfirmedFriends;
             foreach (string masterID in IDs)
             {
+                if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == masterID).Count() != 0)
+                {
+                    return;
+                }
                 System.Collections.Generic.IEnumerable<GetFriendsResult> friendsWithID = friends.ToArray().Where(friend => friend.PlayFabMasterId == masterID);
 
                 if (friendsWithID.Count() == 0)
                 {
                     loggerInstance.Warning($"No friends with ID \"{masterID}\"");
                     UserData userData = UserDataManager.FetchUserData(masterID);
+
                     if (userData != null)
                     {
-                        InvitePerson(userData, optionsPage);
+                        loggerInstance.Msg($"Inviting ID {userData.playFabMasterId} - {userData.publicName}");
+                        InvitePerson(userData.playFabMasterId, userData.playFabTitleId, userData.publicName, optionsPage);
+                    }
+                    else
+                    {
+                        loggerInstance.Warning($"Could not find user - {masterID}");
                     }
                 }
                 else
                 {
                     GetFriendsResult friend = friendsWithID.First();
-                    if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == friend.PlayFabMasterId).Count() == 0)
-                        InvitePerson(friend.PlatformId, friend.PlayFabMasterId, friend.PlayFabTitleId, friend.PublicName, optionsPage);
+                    loggerInstance.Msg($"Inviting ID {friend.PlayFabMasterId} - {friend.PublicName}");
+                    InvitePerson(friend.PlayFabMasterId, friend.PlayFabTitleId, friend.PublicName, optionsPage);
                 }
             }
         }
@@ -353,13 +395,13 @@ namespace AutomaticInviter
         {
             if (codes.Length < 1)
             {
-                loggerInstance.Error("ID list is empty!");
+                loggerInstance.Error("Code list is empty!");
                 yield break;
             }
 
             if (optionsPage == null)
             {
-                GameObject optionsObject = Calls.GameObjects.Park.LOGIC.Heinhouwserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
                 if (optionsObject == null)
                 {
                     loggerInstance.Error("Cannot find settings page object!");
@@ -374,14 +416,47 @@ namespace AutomaticInviter
                 }
             }
 
+            GameObject friendScreen = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.PlayerFinderScreen.GetGameObject();
+            FindUser findUser = friendScreen.GetComponent<FindUser>();
+
             foreach (string code in codes)
             {
-                InvitePersonByFriendCode(code);
-                while (invokedFind == true)
+                loggerInstance.Msg($"Finding player with friend code {code}");
+                InvitePersonByFriendCode(code, findUser);
+                while (invokedFind != null)
                 {
                     yield return null;
                 }
+                for (int i = 1; i <= 8; i++)
+                {
+                    findUser.OnBackspacePressed();
+                }
             }
+            yield break;
+        }
+
+        internal static IEnumerator WaitForUserData(PlayerTag playerTag, OptionsPage options)
+        {
+            int count = 0;
+            while (playerTag.UserData.publicName == "" && count < 5000) // For me it usually takes around 200 +- 50 but idk if it's affected by lag so 5000 frames should be a good timeout
+            {
+                count++;
+                yield return null;
+            }
+
+            if (count == 5000)
+            {
+                loggerInstance.Warning("Search for user timed out");
+                yield break;
+            }
+
+            if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == playerTag.UserData.playFabMasterId).Count() != 0)
+            {
+                yield break;
+            }
+
+            options.Initialize(playerTag.UserData);
+            InvitePerson(playerTag.UserData, options);
             yield break;
         }
     }
@@ -391,9 +466,9 @@ namespace AutomaticInviter
     {
         static void Postfix(ref FindUser __instance)
         {
-            if (Core.invokedFind)
+            if (Core.invokedFind != null)
             {
-                GameObject optionsObject = Calls.GameObjects.Gym.LOGIC.Heinhouserproducts.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
                 if (optionsObject == null)
                 {
                     Core.loggerInstance.Error("Cannot find settings page object!");
@@ -407,8 +482,15 @@ namespace AutomaticInviter
                     return;
                 }
 
-                options.Initialize(__instance.PlayerTag.UserData);
-                Core.InvitePerson(__instance.PlayerTag.UserData, options);
+                if (__instance.searchStatusText.text != "No ID match found")
+                {
+                    Core.waitingCoroutine = MelonCoroutines.Start(Core.WaitForUserData(__instance.PlayerTag, options));
+                }
+                else
+                {
+                    Core.loggerInstance.Warning($"No user found with friend code {Core.invokedFind}");
+                }
+                Core.invokedFind = null;
             }
         }
     }
