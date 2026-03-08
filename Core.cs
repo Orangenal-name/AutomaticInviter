@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
 
-[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "1.2.1", "Orangenal", null)]
+[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "1.2.2", "Orangenal", null)]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
 
 namespace AutomaticInviter
@@ -60,17 +60,13 @@ namespace AutomaticInviter
             UI.instance.AddMod(mod);
         }
 
-        public override void OnUpdate()
-        {
-            if (Input.GetKeyDown(KeyCode.I))
-            {
-                loggerInstance.Msg("Refreshing lists...");
-                UpdateLists();
-            }
-            // Used for debugging so I don't have to go in headset
 
-            /*if (Input.GetKeyDown(KeyCode.O))
+        // Used for debugging so I don't have to go in headset
+        /*public override void OnUpdate()
+        {
+            if (Input.GetKeyDown(KeyCode.O))
             {
+                UpdateLists();
                 MelonLogger.Msg("Inviting");
                 GameObject optionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
                 OptionsPage options = optionsObject.GetComponent<OptionsPage>();
@@ -82,8 +78,8 @@ namespace AutomaticInviter
                 if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                     inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
                 MelonLogger.Msg("okay done");
-            }*/
-        }
+            }
+        }*/
 
         private void InitFiles()
         {
@@ -274,6 +270,7 @@ namespace AutomaticInviter
             inviteListButton.name = "InviteListButton";
             inviteListButton.transform.GetChild(0).gameObject.GetComponent<InteractionButton>().onPressed.AddListener(new System.Action(() =>
             {
+                UpdateLists();
                 loggerInstance.Msg("Inviting people...");
                 if (usernameList.Length >= 1)
                     InviteListByUsername(usernameList, options);
