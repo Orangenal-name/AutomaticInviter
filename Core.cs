@@ -131,7 +131,7 @@ namespace AutomaticInviter
             }
             UserData friendData = new UserData(masterID, titleID, username);
             optionsPage.Initialize(friendData);
-            optionsPage.inviteToParkButton.onPressed.Invoke();
+            optionsPage.inviteButton.onPressed.Invoke();
         }
 
         public static void InvitePerson(UserData userData, OptionsPage optionsPage)
@@ -142,7 +142,7 @@ namespace AutomaticInviter
                 return;
             }
             optionsPage.Initialize(userData);
-            optionsPage.inviteToParkButton.onPressed.Invoke();
+            optionsPage.inviteButton.onPressed.Invoke();
         }
 
         public static void InvitePersonByFriendCode(string code, FindUser findUser)
