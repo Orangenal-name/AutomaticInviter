@@ -6,7 +6,6 @@ using Il2CppRUMBLE.Social.Phone;
 using Il2CppTMPro;
 using MelonLoader;
 using RumbleModdingAPI.RMAPI;
-using RumbleModUI;
 using System.Collections;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -28,7 +27,6 @@ namespace AutomaticInviter
         internal static MelonLogger.Instance loggerInstance;
         private bool autoInvite = false;
         private AssetBundle assetBundle = null;
-        private Mod mod = new Mod();
         public static string invokedFind = null;
         private static object inviteListByCodeCoroutine = null;
         internal static object waitingCoroutine = null;
@@ -40,24 +38,9 @@ namespace AutomaticInviter
             Actions.onMapInitialized += OnMapInitialised;
             InitFiles();
             loggerInstance = LoggerInstance;
-            assetBundle = AssetBundles.LoadAssetBundleFromStream(this, "AutomaticInviter.Resources.autoinvite");
-
-            mod.ModName = Info.Name;
-            mod.ModVersion = Info.Version;
-            mod.SetFolder(mod.ModName);
-            mod.AddDescription("Description", "", "Invite a list of people to your park automatically!", new Tags { IsSummary = true });
-
-            mod.AddToList("Persistent inviting on open", false, 0, "If disabled, the \"Auto invite on open\" setting will always be off when you enter the gym (Does not currently save when you close your game)", new Tags());
-            mod.GetFromFile();
-
-            UI.instance.UI_Initialized += OnUIInit;
+            assetBundle = AssetBundles.LoadAssetBundleFromStream(this, "AutomaticInviter.autoinvite");
 
             loggerInstance.Msg("Initialised.");
-        }
-
-        public void OnUIInit()
-        {
-            UI.instance.AddMod(mod);
         }
 
 
@@ -179,14 +162,11 @@ namespace AutomaticInviter
         {
             if (sceneName == "Gym")
             {
-                if (!(bool)mod.Settings[1].SavedValue)
-                    autoInvite = false;
+                autoInvite = false;
 
                 GameObject HostPanel = GameObjects.Gym.INTERACTABLES.Parkboard.RotatingScreen.HostPanel.GetGameObject();
                 GameObject DoorPilicy = HostPanel.transform.GetChild(1).gameObject;
-                GameObject JoinInviteSetting = GameObject.Instantiate(DoorPilicy);
-
-                JoinInviteSetting.transform.SetParent(DoorPilicy.transform.parent);
+                GameObject JoinInviteSetting = GameObject.Instantiate(DoorPilicy, DoorPilicy.transform.parent, true);
 
                 Vector3 pos = DoorPilicy.transform.position;
                 Quaternion rot = DoorPilicy.transform.rotation;
@@ -196,8 +176,6 @@ namespace AutomaticInviter
                 JoinInviteSetting.transform.GetChild(1).GetComponentInChildren<TextMeshPro>().text = "Auto invite on open?";
 
                 InteractionSlider slider = JoinInviteSetting.transform.GetChild(2).GetChild(8).GetComponent<InteractionSlider>();
-                if ((bool)mod.Settings[1].SavedValue)
-                    slider.SetStep(autoInvite ? 1 : 0);
 
                 Il2CppSystem.Action<int> action = new System.Action<int>((int step) =>
                 {
