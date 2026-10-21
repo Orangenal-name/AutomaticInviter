@@ -147,6 +147,7 @@ namespace AutomaticInviter
         {
             foreach (char character in code)
             {
+                if (character == '-') continue; // Foolproof
                 findUser.OnNumberPressed((int)Char.GetNumericValue(character));
             }
             invokedFind = code;
