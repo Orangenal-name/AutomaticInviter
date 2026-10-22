@@ -11,19 +11,19 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
 
-[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "2.0.0", "Orangenal", null)]
+[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "2.0.2", "Orangenal", null)]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
 
 namespace AutomaticInviter
 {
     public class Core : MelonMod
     {
-        private string[] usernameList;
-        private string usernamesPath = "UserData/AutomaticInviter/usernames.txt";
-        private string[] IDList;
-        private string IDsPath = "UserData/AutomaticInviter/IDs.txt";
-        private string[] CodesList;
-        private string CodesListPath = "UserData/AutomaticInviter/FriendCodes.txt";
+        private static string[] usernameList;
+        private static string usernamesPath = "UserData/AutomaticInviter/usernames.txt";
+        private static string[] IDList;
+        private static string IDsPath = "UserData/AutomaticInviter/IDs.txt";
+        private static string[] CodesList;
+        private static string CodesListPath = "UserData/AutomaticInviter/FriendCodes.txt";
         internal static MelonLogger.Instance loggerInstance;
         private bool autoInvite = false;
         private AssetBundle assetBundle = null;
@@ -46,38 +46,37 @@ namespace AutomaticInviter
 
 
         // Used for debugging so I don't have to go in headset
-        /*public override void OnUpdate()
+        #if DEBUG
+        public static void DebugFunction()
         {
-            if (Input.GetKeyDown(KeyCode.O))
+            UpdateLists();
+            MelonLogger.Msg("Inviting");
+            OptionsPage options;
+
+            if (currentScene == "Gym")
             {
-                UpdateLists();
-                MelonLogger.Msg("Inviting");
-                OptionsPage options;
-
-                if (currentScene == "Gym")
-                {
-                    GameObject gymOptionsObject = GameObjects.Gym.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
-                    options = gymOptionsObject.GetComponent<OptionsPage>();
-                }
-                else if (currentScene == "Park")
-                {
-                    GameObject parkOptionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
-                    options = parkOptionsObject.GetComponent<OptionsPage>();
-                }
-                else
-                {
-                    return;
-                }
-
-                if (usernameList.Length >= 1)
-                    InviteListByUsername(usernameList, options);
-                if (IDList.Length >= 1)
-                    InviteListByMasterID(IDList, options);
-                if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
-                    inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
-                MelonLogger.Msg("okay done");
+                GameObject gymOptionsObject = GameObjects.Gym.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                options = gymOptionsObject.GetComponent<OptionsPage>();
             }
-        }*/
+            else if (currentScene == "Park")
+            {
+                GameObject parkOptionsObject = GameObjects.Park.INTERACTABLES.Telephone20REDUXspecialedition.SettingsScreen.GetGameObject();
+                options = parkOptionsObject.GetComponent<OptionsPage>();
+            }
+            else
+            {
+                return;
+            }
+
+            if (usernameList.Length >= 1)
+                InviteListByUsername(usernameList, options);
+            if (IDList.Length >= 1)
+                InviteListByMasterID(IDList, options);
+            if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
+                inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
+            MelonLogger.Msg("okay done");
+        }
+        #endif
 
         private void InitFiles() // If files don't exist, make them. Then update the lists if needed
         {
@@ -109,7 +108,7 @@ namespace AutomaticInviter
             UpdateLists();
         }
 
-        private void UpdateLists() // Self-explanatory
+        private static void UpdateLists() // Self-explanatory
         {
             usernameList = [];
             IDList = [];
