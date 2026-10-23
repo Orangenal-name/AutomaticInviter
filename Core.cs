@@ -396,7 +396,7 @@ namespace AutomaticInviter
         {
             if (IDs.Length < 1)
             {
-                loggerInstance.Error("ID list is empty!");
+                loggerInstance.Error("PlayFab ID list is empty!");
                 return;
             }
 
@@ -435,6 +435,10 @@ namespace AutomaticInviter
             Il2CppSystem.Collections.Generic.List<GetFriendsResult> friends = FriendHandler.ConfirmedFriends;
             foreach (string masterID in IDs)
             {
+                if (masterID.Length == 8 || masterID.Length == 9 && masterID.Contains("-"))
+                {
+                    loggerInstance.Warning($"{masterID} looks like a friend code (Player ID) rather than a PlayFab ID.");
+                }
                 if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == masterID).Count() != 0)
                 {
                     return; // Don't need to invite someone who's already here
@@ -443,23 +447,23 @@ namespace AutomaticInviter
 
                 if (friendsWithID.Count() == 0) // Need to fetch the info the inviter function requires
                 {
-                    loggerInstance.Msg($"No friends with ID \"{masterID}\"");
+                    loggerInstance.Msg($"No friends with PlayFab ID: \"{masterID}\"");
                     UserData userData = UserDataManager.FetchUserData(masterID);
 
                     if (userData != null)
                     {
-                        loggerInstance.Msg($"Inviting ID {userData.playFabMasterId} - {userData.publicName}");
+                        loggerInstance.Msg($"Inviting user with PlayFab ID: {userData.playFabMasterId} - {userData.publicName}");
                         InvitePerson(userData.playFabMasterId, userData.playFabTitleId, userData.publicName, optionsPage);
                     }
                     else
                     {
-                        loggerInstance.Warning($"Could not find user - {masterID}");
+                        loggerInstance.Warning($"Could not find user with PlayFab ID: {masterID}");
                     }
                 }
                 else // Info is already fetched for us
                 {
                     GetFriendsResult friend = friendsWithID.First();
-                    loggerInstance.Msg($"Inviting ID {friend.PlayFabMasterId} - {friend.PublicName}");
+                    loggerInstance.Msg($"Inviting player with PlayFab ID: {friend.PlayFabMasterId} - {friend.PublicName}");
                     InvitePerson(friend.PlayFabMasterId, friend.PlayFabTitleId, friend.PublicName, optionsPage);
                 }
             }
@@ -469,7 +473,7 @@ namespace AutomaticInviter
         {
             if (codes.Length < 1)
             {
-                loggerInstance.Error("Code list is empty!");
+                loggerInstance.Error("Friend code (Player ID) list is empty!");
                 inviteListByCodeCoroutine = null;
                 yield break;
             }
@@ -527,7 +531,7 @@ namespace AutomaticInviter
             {
                 if (codeCache.ContainsKey(code)) // Caching means pressing the invite button again won't re-fetch the same players (slow)
                 {
-                    loggerInstance.Msg($"Inviting player with friend code {code}");
+                    loggerInstance.Msg($"Inviting player with friend code (Player ID): {code}");
                     UserData userData = codeCache[code];
                     if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == userData.playFabMasterId).Count() == 0)
                     {
@@ -536,7 +540,7 @@ namespace AutomaticInviter
                     inviteListByCodeCoroutine = null;
                     yield break;
                 }
-                loggerInstance.Msg($"Finding player with friend code {code}");
+                loggerInstance.Msg($"Finding player with friend code (Player ID): {code}");
                 InvitePersonByFriendCode(code, findUser);
                 while (invokedFind != null)
                 {
@@ -574,7 +578,7 @@ namespace AutomaticInviter
             Core.codeCache.Add(code, playerTag.UserData);
 
             options.Initialize(playerTag.UserData);
-            loggerInstance.Msg($"Inviting player with friend code {code}");
+            loggerInstance.Msg($"Inviting player with friend code (Player ID): {code}");
             InvitePerson(playerTag.UserData, options);
             yield break;
         }
@@ -620,7 +624,7 @@ namespace AutomaticInviter
                 }
                 else
                 {
-                    Core.loggerInstance.Warning($"No user found with friend code {Core.invokedFind}");
+                    Core.loggerInstance.Warning($"No user found with friend code (Player ID): {Core.invokedFind}");
                 }
                 Core.invokedFind = null;
             }
