@@ -441,7 +441,7 @@ namespace AutomaticInviter
                 }
                 if (Calls.Players.GetAllPlayers().ToArray().Where(player => player.Data.GeneralData.PlayFabMasterId == masterID).Count() != 0)
                 {
-                    return; // Don't need to invite someone who's already here
+                    continue; // Don't need to invite someone who's already here
                 }
                 System.Collections.Generic.IEnumerable<GetFriendsResult> friendsWithID = friends.ToArray().Where(friend => friend.PlayFabMasterId == masterID);
 
