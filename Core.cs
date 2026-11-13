@@ -259,7 +259,7 @@ namespace AutomaticInviter
                         InviteListByMasterID(IDList, optionsGym);
                     if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                         inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, optionsGym));
-                    loggerInstance.Msg("People invited!");
+                    else loggerInstance.Msg("People invited!");
                 }));
                 inviteListButtonGym.transform.SetParent(inviteButtonObjectGym.transform);
                 inviteListButtonGym.transform.localPosition = new Vector3(0.0326f, 0.0054f, 0.0458f);
@@ -293,7 +293,7 @@ namespace AutomaticInviter
                     InviteListByMasterID(IDList, options);
                 if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                     inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
-                loggerInstance.Msg("People invited!");
+                else loggerInstance.Msg("People invited!");
             }
             
             // Set up invite button
@@ -316,7 +316,7 @@ namespace AutomaticInviter
                     InviteListByMasterID(IDList, options);
                 if (CodesList.Length >= 1 && inviteListByCodeCoroutine == null)
                     inviteListByCodeCoroutine = MelonCoroutines.Start(InviteListByFriendCode(CodesList, options));
-                loggerInstance.Msg("People invited!");
+                else loggerInstance.Msg("People invited!");
             }));
             inviteListButton.transform.SetParent(inviteButtonObject.transform);
             inviteListButton.transform.localPosition = new Vector3(0.0326f, 0.0054f, 0.0458f);
@@ -552,6 +552,7 @@ namespace AutomaticInviter
                 }
             }
             inviteListByCodeCoroutine = null;
+            loggerInstance.Msg("People invited!");
             yield break;
         }
 
