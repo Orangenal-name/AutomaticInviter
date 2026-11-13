@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Events;
 
-[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "2.0.2", "Orangenal", null)]
+[assembly: MelonInfo(typeof(AutomaticInviter.Core), "AutomaticInviter", "2.0.3", "Orangenal", null)]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
 
 namespace AutomaticInviter
