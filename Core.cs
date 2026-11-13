@@ -538,7 +538,7 @@ namespace AutomaticInviter
                         InvitePerson(userData, optionsPage);
                     }
                     inviteListByCodeCoroutine = null;
-                    yield break;
+                    continue;
                 }
                 loggerInstance.Msg($"Finding player with friend code (Player ID): {code}");
                 InvitePersonByFriendCode(code, findUser);
